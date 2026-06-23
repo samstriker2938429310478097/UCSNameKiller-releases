@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UCS NameKiller — Downloads</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #7c5cff;
+      --accent-hover: #9580ff;
+      --border: #2a3548;
+      --error: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      width: 100%;
+      max-width: 28rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+    h1 {
+      margin: 0 0 0.25rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    .subtitle {
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    input[type="password"] {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      margin-bottom: 1rem;
+    }
+    input[type="password"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    button, .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+    }
+    button[type="submit"], .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    button[type="submit"]:hover, .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      margin-top: 0.75rem;
+    }
+    .btn-secondary:hover {
+      border-color: var(--muted);
+    }
+    .error {
+      color: var(--error);
+      font-size: 0.9rem;
+      margin: 0 0 1rem;
+      min-height: 1.25rem;
+    }
+    #downloads { display: none; }
+    #downloads.visible { display: block; }
+    .version {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 1.25rem;
+    }
+    .download-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .note {
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    #gate { display: block; }
+    #gate.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>UCS NameKiller</h1>
+    <p class="subtitle">UCS library renamer — team downloads</p>
+
+    <section id="gate">
+      <form id="loginForm">
+        <label for="password">Team password</label>
+        <input id="password" type="password" autocomplete="current-password" required />
+        <p class="error" id="loginError" aria-live="polite"></p>
+        <button type="submit">Continue</button>
+      </form>
+    </section>
+
+    <section id="downloads">
+      <p class="version">Latest version: <strong id="versionLabel">…</strong></p>
+      <div class="download-list" id="downloadList"></div>
+      <p class="note" id="statusNote"></p>
+      <button type="button" class="btn btn-secondary" id="logoutBtn">Lock page</button>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // Default password: namekiller — change with releases-site/tools/hash-password.html
+      const PASSWORD_HASH = "d9d36f83062bce4163ca229a54240ff65b9a5f8e7320b9d3edfd7e147e36faa2";
+      const MANIFEST_URL =
+        "https://raw.githubusercontent.com/samstriker2938429310478097/UCSNameKiller-releases/main/updates/latest.json";
+      const SESSION_KEY = "ucsnamekiller_downloads_unlocked";
+
+      const gate = document.getElementById("gate");
+      const downloads = document.getElementById("downloads");
+      const loginForm = document.getElementById("loginForm");
+      const loginError = document.getElementById("loginError");
+      const passwordInput = document.getElementById("password");
+      const versionLabel = document.getElementById("versionLabel");
+      const downloadList = document.getElementById("downloadList");
+      const statusNote = document.getElementById("statusNote");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      async function sha256(text) {
+        const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+        return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+      }
+
+      function showDownloads() {
+        gate.classList.add("hidden");
+        downloads.classList.add("visible");
+        sessionStorage.setItem(SESSION_KEY, "1");
+        loadManifest();
+      }
+
+      function lockPage() {
+        sessionStorage.removeItem(SESSION_KEY);
+        gate.classList.remove("hidden");
+        downloads.classList.remove("visible");
+        passwordInput.value = "";
+        loginError.textContent = "";
+      }
+
+      function addDownloadButton(label, url) {
+        const link = document.createElement("a");
+        link.className = "btn btn-primary";
+        link.href = url;
+        link.textContent = label;
+        link.rel = "noopener noreferrer";
+        downloadList.appendChild(link);
+      }
+
+      async function loadManifest() {
+        versionLabel.textContent = "…";
+        downloadList.innerHTML = "";
+        statusNote.textContent = "Loading release info…";
+
+        try {
+          const response = await fetch(MANIFEST_URL, { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const manifest = await response.json();
+          const version = manifest.version || "unknown";
+          versionLabel.textContent = `v${String(version).replace(/^v/i, "")}`;
+
+          const macUrl = manifest.mac_url;
+          const windowsUrl = manifest.windows_url;
+
+          if (macUrl) {
+            addDownloadButton("Download for Mac (.dmg)", macUrl);
+          }
+          if (windowsUrl) {
+            addDownloadButton("Download for Windows (.exe)", windowsUrl);
+          }
+
+          if (!macUrl && !windowsUrl) {
+            statusNote.textContent =
+              "No direct download links yet. Ask your admin to publish a release.";
+          } else {
+            statusNote.textContent =
+              "Mac: open the .dmg and drag UCS NameKiller to Applications. Windows: run UCS NameKiller.exe (portable, no installer).";
+          }
+        } catch (error) {
+          statusNote.textContent =
+            "Could not load release info. Try again later or ask your admin.";
+          console.warn("[UCS NameKiller downloads]", error);
+        }
+      }
+
+      loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        loginError.textContent = "";
+
+        const entered = passwordInput.value;
+        const hash = await sha256(entered);
+
+        if (hash === PASSWORD_HASH) {
+          showDownloads();
+          return;
+        }
+
+        loginError.textContent = "Wrong password. Ask your team lead if you need it.";
+      });
+
+      logoutBtn.addEventListener("click", lockPage);
+
+      if (sessionStorage.getItem(SESSION_KEY) === "1") {
+        showDownloads();
+      }
+    })();
+  </script>
+</body>
+</html>
