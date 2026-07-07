@@ -1,7 +1,7 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "download_page_url": "https://samstriker2938429310478097.github.io/UCSNameKiller-releases/",
   "release_url": "https://samstriker2938429310478097.github.io/UCSNameKiller-releases/",
-  "mac_url": "https://github.com/samstriker2938429310478097/UCSNameKiller-releases/releases/download/v0.1.0/UCSNameKiller_0.1.0_macos.dmg",
-  "windows_url": "https://github.com/samstriker2938429310478097/UCSNameKiller-releases/releases/download/v0.1.0/UCSNameKiller_0.1.0_windows.exe"
+  "mac_url": "https://github.com/samstriker2938429310478097/UCSNameKiller-releases/releases/download/v0.2.0/UCSNameKiller_0.2.0_macos.dmg",
+  "windows_url": "https://github.com/samstriker2938429310478097/UCSNameKiller-releases/releases/download/v0.2.0/UCSNameKiller_0.2.0_windows.zip"
 }
